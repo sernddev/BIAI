@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  java-builder:
+    image: java-maven-builder
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wren-engine-builder
+    volumes:
+      - ./src:/workspace         # Mount your source code here
+      - ./output:/output         # JAR output will go here
+    working_dir: /workspace
+    tty: true
+    stdin_open: true
+    command: /bin/bash           # Start in interactive shell
