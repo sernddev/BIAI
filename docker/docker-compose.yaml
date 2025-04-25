@@ -4,37 +4,49 @@ volumes:
   data:
 
 networks:
-  wren:
-    driver: bridge
-
+    app-network:
+       driver: bridge
+       external: true  
+ 
 services:
   bootstrap:
-    image: ghcr.io/canner/wren-bootstrap:${WREN_BOOTSTRAP_VERSION}
+    #image: ghcr.io/canner/wren-bootstrap:${WREN_BOOTSTRAP_VERSION}
+    build: 
+     context: ./bootstrap
+     dockerfile: ./Dockerfile
     restart: on-failure
     platform: ${PLATFORM}
     environment:
       DATA_PATH: /app/data
     volumes:
       - data:/app/data
-    command: /bin/sh /app/init.sh
+    networks:
+      - app-network      
+    command: /bin/sh /app/init.sh 
 
   wren-engine:
-    image: ghcr.io/canner/wren-engine:${WREN_ENGINE_VERSION}
+    #image: ghcr.io/canner/wren-engine:${WREN_ENGINE_VERSION}
+    build: 
+     context: ../wren-engine-0.15.1
+     dockerfile: ./docker/Dockerfile
     restart: on-failure
     platform: ${PLATFORM}
     expose:
       - ${WREN_ENGINE_PORT}
-      - ${WREN_ENGINE_SQL_PORT}
+      - ${WREN_ENGINE_SQL_PORT} 
     volumes:
-      - data:/usr/src/app/etc
-      - ${PROJECT_DIR}/data:/usr/src/app/data
+      - ./data/wren-engine/etc:/usr/src/app/etc
+      - ./data/wren-engine/:/usr/src/app
     networks:
-      - wren
+      - app-network
     depends_on:
       - bootstrap
 
   ibis-server:
-    image: ghcr.io/canner/wren-engine-ibis:${IBIS_SERVER_VERSION}
+    #image: ghcr.io/canner/wren-engine-ibis:${IBIS_SERVER_VERSION}
+    build: 
+     context: ../wren-engine-0.15.1
+     dockerfile: ./ibis-server/Dockerfile
     restart: on-failure
     platform: ${PLATFORM}
     expose:
@@ -42,10 +54,12 @@ services:
     environment:
       WREN_ENGINE_ENDPOINT: http://wren-engine:${WREN_ENGINE_PORT}
     networks:
-      - wren
+      - app-network
 
   wren-ai-service:
-    image: ghcr.io/canner/wren-ai-service:${WREN_AI_SERVICE_VERSION}
+    #image: ghcr.io/canner/wren-ai-service:${WREN_AI_SERVICE_VERSION}
+    build: 
+     context: ../wren-ai-service
     restart: on-failure
     platform: ${PLATFORM}
     expose:
@@ -58,11 +72,11 @@ services:
       PYTHONUNBUFFERED: 1
       CONFIG_PATH: /app/data/config.yaml
     env_file:
-      - ${PROJECT_DIR}/.env
+      - ./.env
     volumes:
-      - ${PROJECT_DIR}/config.yaml:/app/data/config.yaml
+      - ./config.yaml:/app/data/config.yaml
     networks:
-      - wren
+      - app-network
     depends_on:
       - qdrant
 
@@ -73,12 +87,14 @@ services:
       - 6333
       - 6334
     volumes:
-      - data:/qdrant/storage
+      - ./data/qdrant:/qdrant/storage
     networks:
-      - wren
+      - app-network
 
   wren-ui:
-    image: ghcr.io/canner/wren-ui:${WREN_UI_VERSION}
+    #image: ghcr.io/canner/wren-ui:${WREN_UI_VERSION}
+    build: 
+     context: ../wren-ui
     restart: on-failure
     platform: ${PLATFORM}
     environment:
@@ -111,9 +127,9 @@ services:
       # HOST_PORT is the port you want to expose to the host machine
       - ${HOST_PORT}:3000
     volumes:
-      - data:/app/data
+      - ./data/wren-ui:/app/data
     networks:
-      - wren
+      - app-network
     depends_on:
       - wren-ai-service
       - wren-engine
